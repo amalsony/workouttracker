@@ -9,29 +9,56 @@ import SwiftUI
 import SwiftData
 
 struct RootView: View {
-    var body: some View {
-        TabView {
-            Tab("Home", systemImage: "house.fill") {
-                WorkoutsView()
-            }
-            
-            Tab("Workouts", systemImage: "figure.strengthtraining.traditional") {
-                WorkoutsView()
-            }
-            
-            Tab("Progress", systemImage: "chart.line.uptrend.xyaxis") {
-                StatsView()
-            }
-            
-            Tab("Profile", systemImage: "person.fill") {
-                ProfileView()
-            }
-        }
-        .tabBarMinimizeBehavior(.onScrollDown)
-    }
-}
+    @State private var showingLogSheet = false
 
-#Preview {
-    RootView()
-        .modelContainer(for: Workout.self)
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            TabView {
+                Tab("Home", systemImage: "house.fill") {
+                    HomeView()
+                }
+
+                Tab("Workouts", systemImage: "figure.strengthtraining.traditional") {
+                    WorkoutsView()
+                }
+
+                Tab("Progress", systemImage: "chart.line.uptrend.xyaxis") {
+                    StatsView()
+                }
+
+                Tab("Profile", systemImage: "person.fill") {
+                    ProfileView()
+                }
+            }
+            .tabBarMinimizeBehavior(.onScrollDown)
+
+            Button {
+                showingLogSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
+                    .padding()
+            }
+            .glassEffect(.regular.interactive())
+            .padding(.trailing, 16)
+            .padding(.bottom, 80)
+            .accessibilityLabel("Log a workout")
+        }
+        .sheet(isPresented: $showingLogSheet) {
+            NavigationStack {
+                ContentUnavailableView(
+                    "Log a Workout",
+                    systemImage: "mic.fill",
+                    description: Text("Voice and manual logging will live here.")
+                )
+                .navigationTitle("New Workout")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { showingLogSheet = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
+    }
 }

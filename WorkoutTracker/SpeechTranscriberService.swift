@@ -113,20 +113,35 @@ final class SpeechTranscriberService {
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         guard let analyzerFormat else { return }
+
         let converter = AVAudioConverter(from: recordingFormat, to: analyzerFormat)
         let builder = inputBuilder
 
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { buffer, _ in
-            guard let converter,
-                  let converted = AVAudioPCMBuffer(
-                    pcmFormat: analyzerFormat,
-                    frameCapacity: AVAudioFrameCount(analyzerFormat.sampleRate * 0.4)) else { return }
+            guard let converter else { return }
+
+            // Size the output buffer to the actual sample-rate ratio, not a guess.
+            let ratio = analyzerFormat.sampleRate / recordingFormat.sampleRate
+            let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1
+            guard let converted = AVAudioPCMBuffer(pcmFormat: analyzerFormat,
+                                                   frameCapacity: capacity) else { return }
+
+            // Hand the converter this buffer ONCE, then tell it we're done.
+            var provided = false
             var nsError: NSError?
-            converter.convert(to: converted, error: &nsError) { _, status in
-                status.pointee = .haveData
+            converter.convert(to: converted, error: &nsError) { _, outStatus in
+                if provided {
+                    outStatus.pointee = .noDataNow
+                    return nil
+                }
+                provided = true
+                outStatus.pointee = .haveData
                 return buffer
             }
-            if nsError == nil { builder?.yield(AnalyzerInput(buffer: converted)) }
+
+            if nsError == nil, converted.frameLength > 0 {
+                builder?.yield(AnalyzerInput(buffer: converted))
+            }
         }
 
         audioEngine.prepare()

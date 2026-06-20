@@ -10,9 +10,22 @@
 		BA0773A72FE1EC4D00B51877 /* WorkoutTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WorkoutTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		BA3F97742FE6418A002F6520 /* Exceptions for "WorkoutTracker" folder in "WorkoutTracker" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = BA0773A62FE1EC4D00B51877 /* WorkoutTracker */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BA0773A92FE1EC4D00B51877 /* WorkoutTracker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BA3F97742FE6418A002F6520 /* Exceptions for "WorkoutTracker" folder in "WorkoutTracker" target */,
+			);
 			path = WorkoutTracker;
 			sourceTree = "<group>";
 		};
@@ -254,6 +267,9 @@
 				DEVELOPMENT_TEAM = 328QUNU3W4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WorkoutTracker/Info.plist;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Workout tracker uses the microphone to log workouts by voice";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Workout tracker transcribes your voice to log workouts.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -286,6 +302,9 @@
 				DEVELOPMENT_TEAM = 328QUNU3W4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WorkoutTracker/Info.plist;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Workout tracker uses the microphone to log workouts by voice";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Workout tracker transcribes your voice to log workouts.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

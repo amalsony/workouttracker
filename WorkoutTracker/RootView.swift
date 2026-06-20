@@ -41,24 +41,12 @@ struct RootView: View {
             }
             .glassEffect(.regular.interactive())
             .padding(.trailing, 16)
-            .padding(.bottom, 80)
+            .padding(.bottom, 70)
             .accessibilityLabel("Log a workout")
         }
         .sheet(isPresented: $showingLogSheet) {
-            NavigationStack {
-                ContentUnavailableView(
-                    "Log a Workout",
-                    systemImage: "mic.fill",
-                    description: Text("Voice and manual logging will live here.")
-                )
-                .navigationTitle("New Workout")
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Done") { showingLogSheet = false }
-                    }
-                }
-            }
-            .presentationDetents([.medium])
+            LogWorkoutView()
+                .presentationDetents([.medium, .large])
         }
     }
 }

@@ -60,7 +60,7 @@ final class SpeechTranscriberService {
                             finalized += text
                             transcript = finalized
                         } else {
-                            transcript = finalized + text   // live guess
+                            transcript = finalized + text
                         }
                     }
                 } catch {
@@ -126,7 +126,7 @@ final class SpeechTranscriberService {
             guard let converted = AVAudioPCMBuffer(pcmFormat: analyzerFormat,
                                                    frameCapacity: capacity) else { return }
 
-            // Hand the converter this buffer ONCE, then tell it we're done.
+            // Hand the converter the buffer
             var provided = false
             var nsError: NSError?
             converter.convert(to: converted, error: &nsError) { _, outStatus in

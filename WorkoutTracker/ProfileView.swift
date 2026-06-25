@@ -8,19 +8,18 @@
 import SwiftUI
 
 struct ProfileView: View {
+    @AppStorage("userName") private var userName = ""
+
     var body: some View {
         NavigationStack {
-            List {
-                Section("General") {
-                    Text("Settings coming soon")
-                        .foregroundStyle(.secondary)
+            Form {
+                Section("Your Name") {
+                    TextField("Enter your name", text: $userName)
+                        .textInputAutocapitalization(.words)
                 }
             }
-            .navigationTitle("Profile & Settings")
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.inline)   // smaller title, per your note
         }
     }
-}
-
-#Preview {
-    ProfileView()
 }

@@ -60,6 +60,7 @@ struct LogWorkoutView: View {
                 }
             }
             .onDisappear { transcriber.stop() }
+            .task { await transcriber.start() }
         }
     }
 }

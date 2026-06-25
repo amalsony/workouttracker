@@ -9,57 +9,34 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
-    @Environment(\.modelContext) private var context
+    @AppStorage("userName") private var userName = ""
     @Query(sort: \Workout.date, order: .reverse) private var workouts: [Workout]
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(workouts) { workout in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(workout.summary)
-                            .font(.headline)
-                        Text(workout.date, style: .date)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(greeting + (userName.isEmpty ? "" : (", " + userName)))
+                            .font(.title2.bold())
                     }
+                    .padding(.top, 8)
+
+                     StreakCalendarView(workouts: workouts)
+
+                    Spacer(minLength: 0)
                 }
-                .onDelete(perform: deleteWorkouts)
-            }
-            .navigationTitle("Workouts")
-            .overlay {
-                if workouts.isEmpty {
-                    ContentUnavailableView(
-                        "No Workouts Yet",
-                        systemImage: "figure.run",
-                        description: Text("Tap + to log your first workout.")
-                    )
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { EditButton() }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: addSample) {
-                        Image(systemName: "plus")
-                    }
-                }
+                .padding()
             }
         }
     }
 
-    private func addSample() {
-        context.insert(Workout(summary: "Push day — bench, shoulders, triceps"))
-    }
-
-    private func deleteWorkouts(at offsets: IndexSet) {
-        for index in offsets {
-            context.delete(workouts[index])
+    private var greeting: String {
+        switch Calendar.current.component(.hour, from: .now) {
+        case 5..<12:  "Good morning"
+        case 12..<17: "Good afternoon"
+        case 17..<22: "Good evening"
+        default:      "Good night"
         }
     }
 }
-
-#Preview {
-    HomeView()
-        .modelContainer(for: Workout.self, inMemory: true)
-}
-

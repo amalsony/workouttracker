@@ -11,6 +11,7 @@ import SwiftData
 struct WorkoutsView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Workout.date, order: .reverse) private var workouts: [Workout]
+    @State private var showingLogSheet = false
 
     var body: some View {
         NavigationStack {
@@ -39,16 +40,19 @@ struct WorkoutsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { EditButton() }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: addSample) {
+                    Button {
+                        showingLogSheet = true
+                    } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("Log a workout")
                 }
             }
         }
-    }
-
-    private func addSample() {
-        context.insert(Workout(summary: "Push day — bench, shoulders, triceps"))
+        .sheet(isPresented: $showingLogSheet) {
+            LogWorkoutView()
+                .presentationDetents([.medium, .large])
+        }
     }
 
     private func deleteWorkouts(at offsets: IndexSet) {

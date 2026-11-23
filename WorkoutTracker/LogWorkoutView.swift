@@ -6,10 +6,17 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct LogWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
     @State private var transcriber = SpeechTranscriberService()
+    @State private var showingSaveError = false
+
+    private var summary: String {
+        transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     var body: some View {
         NavigationStack {
@@ -51,16 +58,33 @@ struct LogWorkoutView: View {
                     Button("Cancel") { transcriber.stop(); dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        transcriber.stop()
-                        // next step: save / parse transcriber.transcript
-                        dismiss()
-                    }
-                    .disabled(transcriber.transcript.isEmpty)
+                    Button("Save", action: saveWorkout)
+                        .disabled(summary.isEmpty)
                 }
+            }
+            .alert("Couldn’t save workout", isPresented: $showingSaveError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Your transcript is still here. You can try saving again.")
             }
             .onDisappear { transcriber.stop() }
             .task { await transcriber.start() }
+        }
+    }
+
+    private func saveWorkout() {
+        let workoutSummary = summary
+        guard !workoutSummary.isEmpty else { return }
+
+        transcriber.stop()
+        let workout = Workout(summary: workoutSummary)
+        context.insert(workout)
+        do {
+            try context.save()
+            dismiss()
+        } catch {
+            context.delete(workout)
+            showingSaveError = true
         }
     }
 }

@@ -12,6 +12,7 @@ struct LogWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @State private var transcriber = SpeechTranscriberService()
+    @State private var recordingTask: Task<Void, Never>?
     @State private var showingSaveError = false
 
     private var summary: String {
@@ -22,9 +23,7 @@ struct LogWorkoutView: View {
         NavigationStack {
             VStack(spacing: 24) {
                 ScrollView {
-                    Text(transcriber.transcript.isEmpty
-                         ? "Tap the mic and describe your workout…"
-                         : transcriber.transcript)
+                    Text(transcriber.transcript.isEmpty ? recordingPrompt : transcriber.transcript)
                         .font(.title3)
                         .foregroundStyle(transcriber.transcript.isEmpty ? .secondary : .primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -38,24 +37,25 @@ struct LogWorkoutView: View {
 
                 Spacer()
 
-                Button {
-                    Task {
-                        transcriber.isRecording ? transcriber.stop() : await transcriber.start()
-                    }
-                } label: {
+                Button(action: toggleRecording) {
                     Image(systemName: transcriber.isRecording ? "stop.fill" : "mic.fill")
                         .font(.system(size: 30))
                         .frame(width: 84, height: 84)
                         .foregroundStyle(.white)
                         .background(transcriber.isRecording ? Color.red : Color.accentColor, in: Circle())
                 }
+                .disabled(recordingTask != nil)
+                .accessibilityLabel(transcriber.isRecording ? "Stop recording" : "Start recording")
                 .padding(.bottom, 40)
             }
             .navigationTitle("Log a Workout")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { transcriber.stop(); dismiss() }
+                    Button("Cancel") {
+                        stopRecording()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: saveWorkout)
@@ -67,16 +67,37 @@ struct LogWorkoutView: View {
             } message: {
                 Text("Your transcript is still here. You can try saving again.")
             }
-            .onDisappear { transcriber.stop() }
-            .task { await transcriber.start() }
+            .onDisappear(perform: stopRecording)
         }
+    }
+
+    private var recordingPrompt: String {
+        if transcriber.isRecording { return "Listening…" }
+        if recordingTask != nil { return "Preparing microphone…" }
+        return "Tap the mic and describe your workout…"
+    }
+
+    private func toggleRecording() {
+        if transcriber.isRecording {
+            stopRecording()
+        } else {
+            recordingTask = Task {
+                await transcriber.start()
+                recordingTask = nil
+            }
+        }
+    }
+
+    private func stopRecording() {
+        recordingTask?.cancel()
+        transcriber.stop()
     }
 
     private func saveWorkout() {
         let workoutSummary = summary
         guard !workoutSummary.isEmpty else { return }
 
-        transcriber.stop()
+        stopRecording()
         let workout = Workout(summary: workoutSummary)
         context.insert(workout)
         do {

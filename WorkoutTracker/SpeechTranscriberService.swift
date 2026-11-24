@@ -25,10 +25,12 @@ final class SpeechTranscriberService {
     private var finalized = ""
 
     func start() async {
-        guard !isRecording else { return }
+        guard !isRecording, !Task.isCancelled else { return }
         transcript = ""; finalized = ""; errorMessage = nil
 
-        guard await micPermissionGranted() else {
+        let hasPermission = await micPermissionGranted()
+        guard !Task.isCancelled else { return }
+        guard hasPermission else {
             errorMessage = "Microphone access is needed to log workouts by voice."
             return
         }
@@ -44,10 +46,12 @@ final class SpeechTranscriberService {
             self.transcriber = transcriber
 
             try await ensureModel(for: transcriber, locale: locale)
+            guard !Task.isCancelled else { return }
 
             let analyzer = SpeechAnalyzer(modules: [transcriber])
             self.analyzer = analyzer
             self.analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
+            guard !Task.isCancelled else { return }
 
             let (stream, builder) = AsyncStream<AnalyzerInput>.makeStream()
             self.inputBuilder = builder
@@ -69,10 +73,13 @@ final class SpeechTranscriberService {
             }
 
             try await analyzer.start(inputSequence: stream)
+            guard !Task.isCancelled else { return }
             try startAudio()
             isRecording = true
         } catch {
-            errorMessage = error.localizedDescription
+            if !Task.isCancelled {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

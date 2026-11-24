@@ -17,12 +17,18 @@ struct WorkoutsView: View {
         NavigationStack {
             List {
                 ForEach(workouts) { workout in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(workout.summary)
-                            .font(.headline)
-                        Text(workout.date, style: .date)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    NavigationLink {
+                        WorkoutDetailView(workout: workout)
+                    } label: {
+                        let names = workout.exercises.map(\.name)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(names.isEmpty ? workout.summary : names.formatted(.list(type: .and)))
+                                .font(.headline)
+                                .lineLimit(2)
+                            Text(workout.date, style: .date)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .onDelete(perform: deleteWorkouts)

@@ -17,16 +17,19 @@ final class SpeechTranscriberService {
     var errorMessage: String?
 
     private let audioEngine = AVAudioEngine()
-    private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
     private var inputBuilder: AsyncStream<AnalyzerInput>.Continuation?
     private var recognizerTask: Task<Void, Never>?
     private var analyzerFormat: AVAudioFormat?
     private var finalized = ""
+    private var hasAudioSession = false
+    private var hasInputTap = false
 
     func start() async {
         guard !isRecording, !Task.isCancelled else { return }
-        transcript = ""; finalized = ""; errorMessage = nil
+        let priorNotes = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        finalized = ""
+        errorMessage = nil
 
         let hasPermission = await micPermissionGranted()
         guard !Task.isCancelled else { return }
@@ -43,8 +46,6 @@ final class SpeechTranscriberService {
                 reportingOptions: [.volatileResults],
                 attributeOptions: []
             )
-            self.transcriber = transcriber
-
             try await ensureModel(for: transcriber, locale: locale)
             guard !Task.isCancelled else { return }
 
@@ -59,16 +60,18 @@ final class SpeechTranscriberService {
             recognizerTask = Task {
                 do {
                     for try await result in transcriber.results {
+                        guard !Task.isCancelled else { return }
                         let text = String(result.text.characters)
                         if result.isFinal {
                             finalized += text
-                            transcript = finalized
-                        } else {
-                            transcript = finalized + text
                         }
+                        let recordingText = result.isFinal ? finalized : finalized + text
+                        transcript = [priorNotes, recordingText].filter { !$0.isEmpty }.joined(separator: "\n")
                     }
                 } catch {
-                    errorMessage = error.localizedDescription
+                    if !Task.isCancelled {
+                        errorMessage = error.localizedDescription
+                    }
                 }
             }
 
@@ -78,16 +81,52 @@ final class SpeechTranscriberService {
             isRecording = true
         } catch {
             if !Task.isCancelled {
+                stop()
                 errorMessage = error.localizedDescription
             }
         }
     }
 
+    func finishRecording() async {
+        guard isRecording, let analyzer else { return }
+        endAudioInput()
+
+        do {
+            try await analyzer.finalizeAndFinishThroughEndOfInput()
+            await recognizerTask?.value
+            try Task.checkCancellation()
+            recognizerTask = nil
+            self.analyzer = nil
+        } catch {
+            if !Task.isCancelled {
+                stop()
+                errorMessage = "Couldn’t finish transcribing. You can review and edit the captured text."
+            }
+        }
+    }
+
     func stop() {
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
-        inputBuilder?.finish()
+        endAudioInput()
         recognizerTask?.cancel()
+        recognizerTask = nil
+        if let analyzer {
+            self.analyzer = nil
+            Task { await analyzer.cancelAndFinishNow() }
+        }
+    }
+
+    private func endAudioInput() {
+        if hasInputTap {
+            audioEngine.stop()
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasInputTap = false
+        }
+        inputBuilder?.finish()
+        inputBuilder = nil
+        if hasAudioSession {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            hasAudioSession = false
+        }
         isRecording = false
     }
 
@@ -116,17 +155,19 @@ final class SpeechTranscriberService {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement, options: .duckOthers)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
+        hasAudioSession = true
 
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
-        guard let analyzerFormat else { return }
+        guard recordingFormat.sampleRate > 0, recordingFormat.channelCount > 0,
+              let analyzerFormat,
+              let converter = AVAudioConverter(from: recordingFormat, to: analyzerFormat) else {
+            throw CocoaError(.featureUnsupported)
+        }
 
-        let converter = AVAudioConverter(from: recordingFormat, to: analyzerFormat)
         let builder = inputBuilder
 
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { buffer, _ in
-            guard let converter else { return }
-
             // Size the output buffer to the actual sample-rate ratio, not a guess.
             let ratio = analyzerFormat.sampleRate / recordingFormat.sampleRate
             let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1
@@ -150,6 +191,7 @@ final class SpeechTranscriberService {
                 builder?.yield(AnalyzerInput(buffer: converted))
             }
         }
+        hasInputTap = true
 
         audioEngine.prepare()
         try audioEngine.start()

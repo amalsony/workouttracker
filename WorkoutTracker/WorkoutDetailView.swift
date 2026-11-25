@@ -15,6 +15,13 @@ struct WorkoutDetailView: View {
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
+                            ForEach(exercise.setEntries) { set in
+                                LabeledContent(exercise.setLabel(for: set.id)) {
+                                    Text(set.metrics)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .font(.subheadline)
+                            }
                             if !exercise.notes.isEmpty {
                                 Text(exercise.notes)
                                     .font(.subheadline)
@@ -24,9 +31,11 @@ struct WorkoutDetailView: View {
                     }
                 }
             }
-            Section("Workout notes") {
-                Text(workout.summary)
-                    .textSelection(.enabled)
+            if !workout.summary.isEmpty {
+                Section("Workout notes") {
+                    Text(workout.summary)
+                        .textSelection(.enabled)
+                }
             }
         }
         .navigationTitle(workout.date.formatted(date: .abbreviated, time: .omitted))

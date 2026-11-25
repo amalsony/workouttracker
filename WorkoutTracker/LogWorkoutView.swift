@@ -18,6 +18,7 @@ struct LogWorkoutView: View {
     @State private var parseError: String?
     @State private var exercises: [WorkoutExercise] = []
     @State private var reviewedNotes: String?
+    @State private var isManualDraft = false
     @State private var showingReview = false
     @State private var showingSaveError = false
 
@@ -25,8 +26,12 @@ struct LogWorkoutView: View {
         transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var isBusy: Bool {
+        speechTask != nil || transcriber.isRecording || parseTask != nil
+    }
+
     private var canReview: Bool {
-        !notes.isEmpty && speechTask == nil && !transcriber.isRecording && parseTask == nil
+        !notes.isEmpty && !isBusy
     }
 
     var body: some View {
@@ -76,7 +81,7 @@ struct LogWorkoutView: View {
         return Form {
             Section {
                 TextField(
-                    "e.g. Squats, 3 sets of 8 at 60 kg, then a 20-minute run",
+                    "e.g. Squats: 10 reps at 40 kg, then 8 reps at 50 kg",
                     text: $transcriber.transcript,
                     axis: .vertical
                 )
@@ -125,13 +130,25 @@ struct LogWorkoutView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            if !notes.isEmpty {
-                Section {
+            Section {
+                Button("Log Manually", action: openManualReview)
+                    .disabled(isBusy)
+                if !notes.isEmpty {
                     Button("Save as Note") { saveWorkout(exercises: []) }
                         .disabled(!canReview)
                 }
             }
         }
+    }
+
+    private func openManualReview() {
+        guard !isBusy else { return }
+        if reviewedNotes != notes {
+            if exercises.isEmpty { exercises = [WorkoutExercise()] }
+            reviewedNotes = notes
+            isManualDraft = true
+        }
+        showingReview = true
     }
 
     private func toggleRecording() {
@@ -153,7 +170,7 @@ struct LogWorkoutView: View {
         guard canReview else { return }
         let source = notes
         parseError = nil
-        if source == reviewedNotes {
+        if source == reviewedNotes && !isManualDraft {
             showingReview = true
             return
         }
@@ -164,6 +181,7 @@ struct LogWorkoutView: View {
                 try Task.checkCancellation()
                 exercises = result
                 reviewedNotes = source
+                isManualDraft = false
                 showingReview = true
             } catch let error as WorkoutParser.ParseError {
                 if !Task.isCancelled { parseError = error.localizedDescription }
@@ -182,7 +200,7 @@ struct LogWorkoutView: View {
     }
 
     private func saveWorkout(exercises: [WorkoutExercise]) {
-        guard canReview, exercises.allSatisfy(\.isValid) else { return }
+        guard !isBusy, !exercises.isEmpty || !notes.isEmpty, exercises.allSatisfy(\.isValid) else { return }
 
         do {
             let workout = try Workout(summary: notes, exercises: exercises.map(\.cleanedUp))

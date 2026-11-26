@@ -7,37 +7,50 @@
 
 import SwiftUI
 
-/// <#Description#>
 struct StreakCalendarView: View {
 
     let workouts: [Workout]
+    @State private var selectedDate = Date.now
 
     private let calendar = Calendar.current
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
 
     var body: some View {
+        let days = monthDays
+        let activeDays = workoutDays
+        let streak = currentStreak
+
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 6) {
                 Image(systemName: "flame.fill")
-                    .foregroundStyle(currentStreak > 0 ? .orange : .secondary)
-                if currentStreak > 0 {
-                    Text("\(currentStreak)").font(.title2.bold())
+                    .foregroundStyle(streak > 0 ? .orange : .secondary)
+                if streak > 0 {
+                    Text("\(streak)").font(.title2.bold())
                     Text("day streak").font(.subheadline).foregroundStyle(.secondary)
                 } else {
                     Text("Start your streak").font(.subheadline).foregroundStyle(.secondary)
                 }
-                Spacer()
-                Text(monthTitle).font(.subheadline).foregroundStyle(.secondary)
+            }
+
+            HStack {
+                monthButton("Previous month", icon: "chevron.left", offset: -1)
+                Text(monthStart, format: .dateTime.month(.wide).year())
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+                    .accessibilityAddTraits(.isHeader)
+                    .contentTransition(.opacity)
+                monthButton("Next month", icon: "chevron.right", offset: 1)
             }
 
             LazyVGrid(columns: columns, spacing: 6) {
                 // Leading blanks so the bottom row stays full (extra space lands top-left).
-                ForEach(0..<leadingBlanks, id: \.self) { _ in
+                ForEach(0..<((7 - days.count % 7) % 7), id: \.self) { _ in
                     Color.clear.frame(height: 34)
                 }
 
-                ForEach(monthDays, id: \.self) { day in
-                    let active = workoutDays.contains(day)
+                ForEach(days, id: \.self) { day in
+                    let active = activeDays.contains(day)
                     RoundedRectangle(cornerRadius: 6)
                         .fill(active ? Color.accentColor : Color.gray.opacity(0.15))
                         .frame(height: 34)
@@ -54,35 +67,56 @@ struct StreakCalendarView: View {
                         }
                 }
             }
+            .id(monthStart)
+            .transition(.opacity)
         }
         .padding()
         .background(.gray.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 24)
+                .onEnded { drag in
+                    let movement = drag.translation
+                    guard abs(movement.width) >= 44, abs(movement.width) > abs(movement.height) else { return }
+                    showMonth(offset: movement.width < 0 ? -1 : 1)
+                }
+        )
+    }
+
+    private func monthButton(_ label: String, icon: String, offset: Int) -> some View {
+        Button {
+            showMonth(offset: offset)
+        } label: {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private func showMonth(offset: Int) {
+        guard let nextMonth = calendar.date(byAdding: .month, value: offset, to: monthStart) else { return }
+        withAnimation(.easeInOut(duration: 0.18)) {
+            selectedDate = nextMonth
+        }
     }
 
     private var workoutDays: Set<Date> {
         Set(workouts.map { calendar.startOfDay(for: $0.date) })
     }
 
-    // Every day in the current calendar month, 1st → last.
+    private var monthStart: Date {
+        calendar.dateInterval(of: .month, for: selectedDate)?.start ?? selectedDate
+    }
+
     private var monthDays: [Date] {
-        let today = calendar.startOfDay(for: .now)
-        guard let interval = calendar.dateInterval(of: .month, for: today),
-              let range = calendar.range(of: .day, in: .month, for: today) else { return [] }
-        return range.compactMap { offset in
-            calendar.date(byAdding: .day, value: offset - 1, to: interval.start)
+        let start = monthStart
+        guard let range = calendar.range(of: .day, in: .month, for: start) else { return [] }
+        return (0..<range.count).compactMap { offset in
+            calendar.date(byAdding: .day, value: offset, to: start)
         }
-    }
-
-    // Pad the front so total cells are a multiple of 7 → bottom row is always full.
-    private var leadingBlanks: Int {
-        let remainder = monthDays.count % 7
-        return remainder == 0 ? 0 : 7 - remainder
-    }
-
-    private var monthTitle: String {
-        let f = DateFormatter()
-        f.dateFormat = "MMMM"
-        return f.string(from: .now)
     }
 
     private var currentStreak: Int {

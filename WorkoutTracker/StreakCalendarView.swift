@@ -78,7 +78,7 @@ struct StreakCalendarView: View {
                 .onEnded { drag in
                     let movement = drag.translation
                     guard abs(movement.width) >= 44, abs(movement.width) > abs(movement.height) else { return }
-                    showMonth(offset: movement.width < 0 ? -1 : 1)
+                    showMonth(offset: movement.width > 0 ? -1 : 1)
                 }
         )
     }

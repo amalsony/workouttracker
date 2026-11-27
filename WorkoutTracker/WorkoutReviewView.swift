@@ -10,6 +10,23 @@ struct WorkoutReviewView: View {
                 Text("Check the exercises before saving. Each set can have its own reps and weight.")
                     .foregroundStyle(.secondary)
             }
+            WorkoutExerciseFields(exercises: $exercises)
+            if !notes.isEmpty {
+                Section("Workout notes") {
+                    Text(notes)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+}
+
+struct WorkoutExerciseFields: View {
+    @Binding var exercises: [WorkoutExercise]
+
+    var body: some View {
+        Group {
             ForEach($exercises) { $exercise in
                 Section {
                     TextField("Exercise name", text: $exercise.name)
@@ -71,14 +88,7 @@ struct WorkoutReviewView: View {
                     exercises.append(WorkoutExercise())
                 }
             }
-            if !notes.isEmpty {
-                Section("Workout notes") {
-                    Text(notes)
-                        .textSelection(.enabled)
-                }
-            }
         }
-        .scrollDismissesKeyboard(.interactively)
     }
 }
 

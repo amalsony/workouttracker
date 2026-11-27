@@ -2,12 +2,15 @@ import SwiftUI
 
 struct WorkoutDetailView: View {
     let workout: Workout
+    @State private var showingEditor = false
 
     var body: some View {
+        let exercises = workout.exercises
+
         List {
-            if !workout.exercises.isEmpty {
+            if !exercises.isEmpty {
                 Section("Exercises") {
-                    ForEach(workout.exercises) { exercise in
+                    ForEach(exercises) { exercise in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(exercise.name).font(.headline)
                             if !exercise.metrics.isEmpty {
@@ -40,5 +43,13 @@ struct WorkoutDetailView: View {
         }
         .navigationTitle(workout.date.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Edit") { showingEditor = true }
+            }
+        }
+        .sheet(isPresented: $showingEditor) {
+            EditWorkoutView(workout: workout)
+        }
     }
 }
